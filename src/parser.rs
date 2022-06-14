@@ -63,11 +63,11 @@ impl<'a> C1Parser<'a>{
         }else if self.current_matches(C1Token::ConstBoolean) {
             self.check_and_eat_token(C1Token::ConstBoolean);
         }else if self.current_matches(C1Token::Identifier) {
-            self.check_and_eat_token(C1Token::Identifier);
-            if self.current_matches(C1Token::LeftParenthesis) {
-                self.check_and_eat_token(C1Token::LeftParenthesis);
-                self.check_and_eat_token(C1Token::RightParenthesis);
-            }
+            if self.next_matches(C1Token::LeftParenthesis) {
+                self.functioncall();
+            }else {
+                self.check_and_eat_token(C1Token::Identifier);
+            }         
         }else {
             self.check_and_eat_token(C1Token::LeftParenthesis);
             self.assignment();
@@ -80,7 +80,12 @@ impl<'a> C1Parser<'a>{
             return;
         }
         self.factor();
-        while self.current_matches(C1Token::Asterisk)||self.current_matches(C1Token::Slash)|| self.current_matches(C1Token::And){
+        self.term1();
+    }
+
+
+    pub fn term1(&mut self) {
+        if self.current_matches(C1Token::Asterisk)||self.current_matches(C1Token::Slash)|| self.current_matches(C1Token::And){
             if self.current_matches(C1Token::Asterisk) {
                 self.check_and_eat_token(C1Token::Asterisk);
                 self.factor();
@@ -91,7 +96,8 @@ impl<'a> C1Parser<'a>{
                 self.check_and_eat_token(C1Token::And);
                 self.factor();
             }
-        }
+            self.term1();
+        } 
     }
     
     pub fn simpexpr(&mut self) {
@@ -102,7 +108,12 @@ impl<'a> C1Parser<'a>{
             self.check_and_eat_token(C1Token::Minus);
         }
         self.term();
-        while self.current_matches(C1Token::Plus)||self.current_matches(C1Token::Minus)|| self.current_matches(C1Token::Or){
+        self.simpexpr1();
+    }
+
+
+    pub fn simpexpr1(&mut self) {
+        if self.current_matches(C1Token::Plus)||self.current_matches(C1Token::Minus)|| self.current_matches(C1Token::Or){
             if self.current_matches(C1Token::Or) {
                 self.check_and_eat_token(C1Token::Or);
                 self.term();
@@ -113,9 +124,10 @@ impl<'a> C1Parser<'a>{
                 self.check_and_eat_token(C1Token::Plus);
                 self.term();
             }
-        }
+            self.simpexpr1();
+        } 
     }
-    
+
     pub fn expr(&mut self) {
         if self.result != Result::Ok(()) {
             return;
@@ -146,12 +158,10 @@ impl<'a> C1Parser<'a>{
         if self.result != Result::Ok(()) {
             return;
         }
-        if self.current_matches(C1Token::LeftParenthesis) {
-            self.check_and_eat_token(C1Token::KwPrintf);
+        if self.current_matches(C1Token::Identifier) && self.next_matches(C1Token::Assign){
             self.check_and_eat_token(C1Token::Identifier);
-            self.check_and_eat_token(C1Token::Equal);
+            self.check_and_eat_token(C1Token::Assign);
             self.assignment();
-            self.check_and_eat_token(C1Token::RightParenthesis);
         }else {
             self.expr();
         }
@@ -162,7 +172,7 @@ impl<'a> C1Parser<'a>{
             return;
         }
         self.check_and_eat_token(C1Token::Identifier);
-        self.check_and_eat_token(C1Token::Equal);
+        self.check_and_eat_token(C1Token::Assign);
         self.assignment();
     }
     
@@ -227,15 +237,11 @@ impl<'a> C1Parser<'a>{
         }else if self.current_matches(C1Token::KwPrintf) {
             self.printf();
             self.check_and_eat_token(C1Token::Semicolon);
-        }else if self.current_matches(C1Token::Identifier) {
-            self.check_and_eat_token(C1Token::Identifier);
-            if self.current_matches(C1Token::Assign) {
-                self.check_and_eat_token(C1Token::Assign);
-                self.assignment();
-            }else {
-                self.check_and_eat_token(C1Token::LeftParenthesis);
-                self.check_and_eat_token(C1Token::RightParenthesis);
-            }
+        }else if self.current_matches(C1Token::Identifier) && self.next_matches(C1Token::Assign){
+            self.statassignment();
+            self.check_and_eat_token(C1Token::Semicolon);
+        }else if self.current_matches(C1Token::Identifier) && self.next_matches(C1Token::LeftParenthesis){
+            self.functioncall();
             self.check_and_eat_token(C1Token::Semicolon);
         }else {
             self.erro();
@@ -255,13 +261,20 @@ impl<'a> C1Parser<'a>{
         }
     }
     
+
     pub fn statementlist(&mut self) {
         if self.result != Result::Ok(()) {
             return;
         }
-        while self.current_matches(C1Token::RightBrace)==false {
+        self.statementlist1(); 
+    }
+
+
+    pub fn statementlist1(&mut self) {
+        if self.current_matches(C1Token::RightBrace)==false {
             self.block();
-        }
+            self.statementlist();
+        }    
     }
 
     pub fn functioncall(&mut self) {
