@@ -33,20 +33,24 @@ impl<'a> C1Parser<'a>{
     }
 
     pub fn current_matches(&self, token: C1Token) -> bool{
-        if self.lexer.current_token().unwrap() ==  token{
+        if self.lexer.current_token() != None && self.lexer.current_token().unwrap() ==  token{
             return true;
         }
         false
     }
     
     pub fn next_matches(&self, token: C1Token) -> bool{
-        if self.lexer.peek_token().unwrap() ==  token{
+        if self.lexer.peek_token() != None && self.lexer.peek_token().unwrap() ==  token{
             return true;
         }
         false
     }
     
     pub fn erro(&mut self){
+        if self.lexer.current_line_number() == None {
+            self.result = Result::Err("end line".to_string());
+            return;
+        }
         let err = self.lexer.current_line_number().unwrap();
         self.result = Result::Err(err.to_string());
         return;
@@ -88,14 +92,12 @@ impl<'a> C1Parser<'a>{
         if self.current_matches(C1Token::Asterisk)||self.current_matches(C1Token::Slash)|| self.current_matches(C1Token::And){
             if self.current_matches(C1Token::Asterisk) {
                 self.check_and_eat_token(C1Token::Asterisk);
-                self.factor();
             }else if self.current_matches(C1Token::Slash) {
                 self.check_and_eat_token(C1Token::Slash);
-                self.factor();
             }else if self.current_matches(C1Token::And) {
                 self.check_and_eat_token(C1Token::And);
-                self.factor();
             }
+            self.factor();
             self.term1();
         } 
     }
@@ -116,14 +118,12 @@ impl<'a> C1Parser<'a>{
         if self.current_matches(C1Token::Plus)||self.current_matches(C1Token::Minus)|| self.current_matches(C1Token::Or){
             if self.current_matches(C1Token::Or) {
                 self.check_and_eat_token(C1Token::Or);
-                self.term();
             }else if self.current_matches(C1Token::Minus) {
                 self.check_and_eat_token(C1Token::Minus);
-                self.term();
             }else if self.current_matches(C1Token::Plus) {
                 self.check_and_eat_token(C1Token::Plus);
-                self.term();
             }
+            self.term();
             self.simpexpr1();
         } 
     }
@@ -266,16 +266,12 @@ impl<'a> C1Parser<'a>{
         if self.result != Result::Ok(()) {
             return;
         }
-        self.statementlist1(); 
-    }
-
-
-    pub fn statementlist1(&mut self) {
         if self.current_matches(C1Token::RightBrace)==false {
             self.block();
             self.statementlist();
-        }    
+        }
     }
+
 
     pub fn functioncall(&mut self) {
         if self.result != Result::Ok(()) {
